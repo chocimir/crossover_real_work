@@ -27,7 +27,6 @@ async function parallelRequestsTest() {
             charges: 51
         }).expect(200)
         .then( (resp) => {
-            console.log(resp.body, resp.status)
             if (resp.body.isAuthorized == true) {
                 accepted += 1;
             }
@@ -43,9 +42,44 @@ async function parallelRequestsTest() {
 }
 
 
+async function testCorrectCharge() {
+    await app.post("/reset").send({account: "test"}).expect(204);
+
+    await app.post("/charge").send({
+        account: "test",
+        charges: 51
+    }).expect(200)
+    .expect((response) => {
+        if (response.body.isAuthorized !== true) throw new Error("Expected authorized request")
+        if (response.body.remainingBalance !== 49) throw new Error("Expected remainig charge 49")
+    });
+
+    await app.post("/charge").send({
+        account: "test",
+        charges: 51
+    }).expect(200)
+    .expect((response) => {
+        if (response.body.isAuthorized !== false) throw new Error("Expected not authorized request")
+        if (response.body.remainingBalance !== 49) throw new Error("Expected remainig charge 49")
+    });
+
+
+    await app.post("/reset").send({account: "test2"}).expect(204);
+    await app.post("/charge").send({
+        account: "test2",
+        charges: 51
+    }).expect(200)
+    .expect((response) => {
+        if (response.body.isAuthorized !== true) throw new Error("Expected authorized request")
+        if (response.body.remainingBalance !== 49) throw new Error("Expected remainig charge 49")
+    });
+}
+
+
 async function runTests() {
     await basicLatencyTest();
     await parallelRequestsTest();
+    await testCorrectCharge();
 }
 
 runTests().catch(console.error);
